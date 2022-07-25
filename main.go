@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -19,7 +18,7 @@ func main() {
 
 func worker(submissionSource ISubmissionSource) {
 	submission := submissionSource.getNextSubmissionData()
-	fmt.Println(submission)
+
 	for submission != nil {
 		judger := Judger{
 			&KotlinCompiler{},

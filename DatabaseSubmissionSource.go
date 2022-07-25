@@ -39,12 +39,13 @@ func (d *DatabaseSubmissionSource) Init() {
 }
 
 func (d *DatabaseSubmissionSource) getNextSubmissionData() *SubmissionData {
-	var submissionData *SubmissionData
-	var submission *SubmissionTable = nil
-	d.db.Transaction(func(tx *gorm.DB) error {
-		tx.Where(&SubmissionTable{Result: "-"}).First(&submission)
+	var submissionData *SubmissionData = nil
+	var submission SubmissionTable
 
-		if submission != nil {
+	d.db.Transaction(func(tx *gorm.DB) error {
+		result := tx.Where(&SubmissionTable{Result: "-"}).First(&submission)
+
+		if result.RowsAffected != 0 {
 			// find bug on getProblemByID
 			// rows, err := tx.Model(&TestCaseTable{ProblemId: submission.ProblemId}).Rows()
 			rows, err := tx.Model(&TestCaseTable{}).Where("problem_id = ?", submission.ProblemId).Rows()

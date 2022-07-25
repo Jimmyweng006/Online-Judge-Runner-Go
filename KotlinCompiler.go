@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"os/exec"
@@ -34,6 +35,10 @@ func (c *KotlinCompiler) compile(code string) string {
 	)
 	cmd.Run()
 
-	os.Remove(KOTLIN_CODE_FILENAME)
+	err := os.Remove(KOTLIN_CODE_FILENAME)
+	if err != nil {
+		fmt.Println(err)
+	}
+
 	return KOTLIN_CODE_EXECUTABLE_FILENAME
 }
