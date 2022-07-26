@@ -25,8 +25,8 @@ func worker(submissionSource ISubmissionSource) {
 			&JVMExecutor{},
 		}
 
-		result := judger.judge(submission)
-		submissionSource.setResult(submission.Id, result)
+		resultState := judger.judge(submission)
+		submissionSource.setResult(submission.Id, resultState.Result, resultState.ExecutedTime, resultState.TotalScore)
 		submission = submissionSource.getNextSubmissionData()
 	}
 

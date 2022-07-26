@@ -2,9 +2,12 @@ package main
 
 import (
 	"bufio"
+	"context"
+	"fmt"
 	"io"
 	"log"
 	"os/exec"
+	"time"
 )
 
 const JVM_INPUT_FILENAME = "input.txt"
@@ -13,10 +16,15 @@ const JVM_OUTPUT_FILENAME = "output.txt"
 type JVMExecutor struct {
 }
 
-func (e *JVMExecutor) execute(executableFilename string, input string) string {
+func (e *JVMExecutor) execute(executableFilename string, input string, timeOutSeconds float64) IExecutorResult {
+	startTime := time.Now().UnixMilli()
 	var output string
 
-	cmd := exec.Command(
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeOutSeconds*float64(time.Second)))
+	defer cancel()
+
+	cmd := exec.CommandContext(
+		ctx,
 		"java",
 		"-jar",
 		executableFilename,
@@ -37,19 +45,38 @@ func (e *JVMExecutor) execute(executableFilename string, input string) string {
 	}
 
 	if err := cmd.Start(); err != nil {
-		log.Fatal(err)
+		fmt.Println("cmd run error")
 	}
 
+	isFinished := true
+	go func() {
+		// blocking here
+		<-ctx.Done()
+		if ctx.Err() == context.DeadlineExceeded {
+			isFinished = false
+		} else {
+		}
+	}()
+
+	// read output
 	reader := bufio.NewReader(stdout)
 	line, err := reader.ReadString('\n')
 	for err == nil {
 		output += line
 		line, err = reader.ReadString('\n')
 	}
-
+	// Call Wait after reaching EOF.
+	isCorrupted := false
 	if err := cmd.Wait(); err != nil {
-		log.Fatal(err)
+		isCorrupted = true
 	}
 
-	return output
+	executedTime := time.Now().UnixMilli() - startTime
+
+	return IExecutorResult{
+		isTimeOut:    !isFinished,
+		isCorrupted:  isCorrupted,
+		executedTime: float64(executedTime) / 1000,
+		output:       output,
+	}
 }

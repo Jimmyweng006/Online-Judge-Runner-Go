@@ -50,6 +50,6 @@ func (f *FileSubmissionSource) getNextSubmissionData() *SubmissionData {
 	}
 }
 
-func (f *FileSubmissionSource) setResult(id int, result Result) {
-	fmt.Printf("Submission %v: %v", id, result)
+func (f *FileSubmissionSource) setResult(id int, result Result, executedTime float64, score int) {
+	fmt.Printf("Submission %v: %v - Score: %v (%v)\n", id, result, score, executedTime)
 }

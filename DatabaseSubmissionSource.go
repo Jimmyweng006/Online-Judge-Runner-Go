@@ -82,12 +82,15 @@ func (d *DatabaseSubmissionSource) getNextSubmissionData() *SubmissionData {
 	return submissionData
 }
 
-func (d *DatabaseSubmissionSource) setResult(id int, result Result) {
+func (d *DatabaseSubmissionSource) setResult(id int, result Result, executedTime float64, score int) {
 	d.db.Transaction(func(tx *gorm.DB) error {
-		tx.Model(&SubmissionTable{Id: id}).Updates(SubmissionTable{Result: result.String()})
+		tx.Model(&SubmissionTable{Id: id}).Updates(SubmissionTable{
+			Result:       result.String() + fmt.Sprintf("(%d)", score),
+			ExecutedTime: executedTime,
+		})
 
 		return nil
 	})
 
-	fmt.Printf("Submission %v: %v\n", id, result)
+	fmt.Printf("Submission %v: %v - Score: %v (%v)\n", id, result, score, executedTime)
 }
