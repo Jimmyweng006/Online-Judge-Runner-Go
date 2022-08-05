@@ -1,14 +1,35 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 
+	"github.com/go-redis/redis/v8"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
+const SUPPORTED_LANGUAGE = "kotlin"
+
 type DatabaseSubmissionSource struct {
-	db *gorm.DB
+	db  *gorm.DB
+	rdb *redis.Client
+}
+
+func getConnection(rdb *redis.Client) error {
+	ctx := context.Background()
+	pong, err := rdb.Ping(ctx).Result()
+
+	if err != nil {
+		fmt.Println("ping error, try reconnect", err.Error())
+		rdb = redis.NewClient(&redis.Options{})
+		pong, err = rdb.Ping(ctx).Result()
+		return err
+	}
+
+	fmt.Println("ping result:", pong)
+	return nil
 }
 
 func initDatabase() (db *gorm.DB, err error) {
@@ -29,6 +50,7 @@ func (d *DatabaseSubmissionSource) Init() {
 		return
 	}
 	d.db = db
+	d.rdb = redis.NewClient(&redis.Options{})
 
 	// create tables
 	db.Transaction(func(tx *gorm.DB) error {
@@ -39,47 +61,25 @@ func (d *DatabaseSubmissionSource) Init() {
 }
 
 func (d *DatabaseSubmissionSource) getNextSubmissionData() *SubmissionData {
-	var submissionData *SubmissionData = nil
-	var submission SubmissionTable
-
-	d.db.Transaction(func(tx *gorm.DB) error {
-		result := tx.Where(&SubmissionTable{Result: "-"}).First(&submission)
-
-		if result.RowsAffected != 0 {
-			// find bug on getProblemByID
-			// rows, err := tx.Model(&TestCaseTable{ProblemId: submission.ProblemId}).Rows()
-			rows, err := tx.Model(&TestCaseTable{}).Where("problem_id = ?", submission.ProblemId).Rows()
-			defer rows.Close()
-			if err != nil {
-				return err
-			}
-
-			var testcases []TestCasesData
-			for rows.Next() {
-				var testcase TestCaseTable
-				tx.ScanRows(rows, &testcase)
-
-				temp := TestCasesData{
-					Input:          testcase.Input,
-					ExpectedOutput: testcase.ExpectedOutput,
-					Score:          testcase.Score,
-					TimeOutSeconds: testcase.TimeOutSeconds,
-				}
-				testcases = append(testcases, temp)
-			}
-
-			submissionData = &SubmissionData{
-				Id:        submission.Id,
-				Language:  submission.Language,
-				Code:      submission.Code,
-				TestCases: testcases,
-			}
-		}
-
+	if err := getConnection(d.rdb); err != nil {
 		return nil
-	})
+	}
 
-	return submissionData
+	ctx := context.Background()
+	var data SubmissionData
+	dataString, err := d.rdb.LPop(ctx, SUPPORTED_LANGUAGE).Result()
+	if err == redis.Nil {
+		return nil
+	} else if err != nil {
+		panic(err)
+	}
+
+	if err := json.Unmarshal([]byte(dataString), &data); err != nil {
+		fmt.Println(err.Error())
+		return nil
+	}
+
+	return &data
 }
 
 func (d *DatabaseSubmissionSource) setResult(id int, result Result, executedTime float64, score int) {

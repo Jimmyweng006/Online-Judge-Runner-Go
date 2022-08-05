@@ -54,7 +54,6 @@ func (e *JVMExecutor) execute(executableFilename string, input string, timeOutSe
 		<-ctx.Done()
 		if ctx.Err() == context.DeadlineExceeded {
 			isFinished = false
-		} else {
 		}
 	}()
 

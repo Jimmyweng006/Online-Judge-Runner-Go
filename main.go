@@ -5,7 +5,6 @@ import (
 )
 
 func main() {
-
 	// var submissionSource ISubmissionSource = &DatabaseSubmissionSource{}
 	var submissionSource = &DatabaseSubmissionSource{}
 	submissionSource.Init()
